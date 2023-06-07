@@ -8,6 +8,9 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+
+import org.jgrapht.alg.util.Pair;
+
 import it.polito.tdp.itunes.model.Album;
 import it.polito.tdp.itunes.model.Artist;
 import it.polito.tdp.itunes.model.Genre;
@@ -139,4 +142,55 @@ public class ItunesDAO {
 		}
 		return result;
 	}
+	
+	public List<Album> getAlbumsWithDuration(Double duration){
+		final String sql = "SELECT a.*, SUM(t.Milliseconds) AS durata_totale "
+				+ "FROM album a, track t "
+				+ "WHERE a.AlbumId=t.AlbumId "
+				+ "GROUP BY a.AlbumId "
+				+ "HAVING durata_totale>=?";
+		List<Album> result = new LinkedList<>();
+		
+		try {
+			Connection conn = DBConnect.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1,(int)(duration*60*1000));
+			ResultSet res = st.executeQuery();
+
+			while (res.next()) {
+				result.add(new Album(res.getInt("AlbumId"), res.getString("Title"),  res.getDouble("durata_totale")/(1000*60)));
+			}
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new RuntimeException("SQL Error");
+		}
+		return result;
+	}
+	
+	public List<Pair<Integer, Integer>> getCompatibleAlbums(){
+	    String sql = "SELECT DISTINCTROW a1.AlbumId AS id1, a2.AlbumId AS id2 "
+	    		+ "FROM album a1, album a2, track t1, track t2, playlisttrack pt1, playlisttrack pt2 "
+	    		+ "WHERE a1.AlbumId=t1.AlbumId AND a2.AlbumId=t2.AlbumId AND t1.TrackId=pt1.TrackId "
+	    		+ " AND t2.TrackId=pt2.TrackId AND pt1.PlaylistId=pt2.PlaylistId ";
+		List<Pair<Integer,Integer>> result = new ArrayList<>();
+		
+		try {
+			Connection conn = DBConnect.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			ResultSet res = st.executeQuery();
+
+			while (res.next()) {
+				result.add(new Pair<Integer, Integer>(res.getInt("id1"),res.getInt("id2")));
+			}
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+		return result;
+		
+	}
+	
+	
 }
