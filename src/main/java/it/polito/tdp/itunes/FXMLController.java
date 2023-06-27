@@ -52,35 +52,32 @@ public class FXMLController {
     void doComponente(ActionEvent event) {
     	Album al=this.cmbA1.getValue();
     	if(al==null) {
-    		
+    		this.txtResult.setText("inserire un album");
+    		return;
     	}
-    	
-    	Set <Album> connessa=this.model.getComponente(al);
-    	int somma=0;
-    	for (Album a: connessa) {
-    		somma+=a.getDurata();
-    	}
-    	txtResult.appendText("dimensione componente: "+connessa.size());
-    	txtResult.appendText("DurataTotale: "+somma);
+    	Set<Album> componenteConnessa=this.model.getComponente(al);
+    	this.txtResult.setText("dimensione: "+componenteConnessa.size()+"\n");
+    	this.txtResult.appendText("somma durate: "+ this.model.sommaDurate());
+ 
     	
     }
 
     @FXML
     void doCreaGrafo(ActionEvent event) {
-    	String durataS=txtDurata.getText();
-    	if (durataS.equals("")) {
-    		this.txtResult.setText("valore d obbligatorio");
+    	String durataS=this.txtDurata.getText();
+    	if(durataS==null || durataS=="") {
+    		this.txtResult.setText("inserire qualcosa!");
     		return;
     	}
-    	Double duration;
     	try {
-    		duration=Double.parseDouble(durataS);
-    		model.creaGrafo(duration);
-    		this.cmbA1.getItems().addAll(model.getAlbums());
-    	}catch(NumberFormatException e) {
-    		this.txtResult.setText("la durata deve essere un valore numerico!");
+    		Double durata=Double.parseDouble(durataS);
+    		this.model.creaGrafo(durata);
+    		this.cmbA1.getItems().addAll(this.model.getAlbums());
+    		
+    	}catch (NumberFormatException e){
+    		this.txtResult.setText("inserire un numero");
+    		
     	}
-    	
     }
 
     @FXML
@@ -88,14 +85,23 @@ public class FXMLController {
     	Album a1=this.cmbA1.getValue();
     	String dTotS=this.txtX.getText();
     	
-    	if(a1==null) {
+    	if(a1==null || dTotS=="") {
     		txtResult.appendText("Specificare durata totale");
     		return;
     	}
     	try {
     		double dTot=Double.parseDouble(dTotS);
     		Set<Album> ottimi =model.ricercaSetMassimo(a1,dTot);
+    		if(ottimi==null) {
+    			this.txtResult.setText("componente connessa non calcolata");
+    			return;
+    		}
+    		this.txtResult.setText("trovato percorso migliore, con durata "+ this.model.getDurata()+" e dimensione "+ottimi.size()+"\n");
+    		for(Album a: ottimi) {
+    			this.txtResult.appendText(a+"\n");
+    		}
     	}catch(NumberFormatException e) {
+    		txtResult.setText("Inserire un numero!");
     		
     	}
     	

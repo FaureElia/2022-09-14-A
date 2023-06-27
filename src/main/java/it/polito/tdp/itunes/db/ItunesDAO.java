@@ -169,10 +169,10 @@ public class ItunesDAO {
 	}
 	
 	public List<Pair<Integer, Integer>> getCompatibleAlbums(){
-	    String sql = "SELECT DISTINCTROW a1.AlbumId AS id1, a2.AlbumId AS id2 "
-	    		+ "FROM album a1, album a2, track t1, track t2, playlisttrack pt1, playlisttrack pt2 "
-	    		+ "WHERE a1.AlbumId=t1.AlbumId AND a2.AlbumId=t2.AlbumId AND t1.TrackId=pt1.TrackId "
-	    		+ " AND t2.TrackId=pt2.TrackId AND pt1.PlaylistId=pt2.PlaylistId ";
+	    String sql = "SELECT t1.AlbumId AS id1, t2.AlbumId AS id2 "
+	    		+ "FROM track t1, playlisttrack p1, track t2, playlisttrack p2 "
+	    		+ "WHERE t1.TrackId=p1.TrackId AND t2.TrackId=p2.TrackId AND t1.TrackId> t2.TrackId AND t1.AlbumId> t2.AlbumId AND p1.PlaylistId=p2.PlaylistId "
+	    		+ "GROUP BY t1.AlbumId, t2.AlbumId ";
 		List<Pair<Integer,Integer>> result = new ArrayList<>();
 		
 		try {

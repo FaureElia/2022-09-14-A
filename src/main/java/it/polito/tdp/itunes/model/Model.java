@@ -19,31 +19,37 @@ import it.polito.tdp.itunes.db.ItunesDAO;
 
 public class Model {
 	private Graph<Album,DefaultEdge> grafo;
+	private Map<Integer, Album> idMap;
+	private ItunesDAO dao;
+	private Set<Album> compConnessa;
 	//per la ricorsione
 	private int dimMax;
+	private double durataMax;
 	private Set<Album> setMassimo;
+	private double durata;
 	
 	
 	public void creaGrafo(double durata) {
-		this.grafo=new SimpleGraph<>(DefaultEdge.class);
-		
-		ItunesDAO dao = new ItunesDAO();
-		Graphs.addAllVertices(this.grafo, dao.getAlbumsWithDuration(durata));
-		Map<Integer,Album> albumIdMap=new HashMap<>();
-		for (Album a:this.grafo.vertexSet()) {
-			albumIdMap.put(a.getAlbumId(), a);
+		this.compConnessa=null;
+		this.dao=new ItunesDAO();
+		this.idMap=new HashMap<Integer, Album>();
+		this.grafo=new SimpleGraph<Album, DefaultEdge>(DefaultEdge.class);
+		List<Album> vertici=this.dao.getAlbumsWithDuration(durata);
+		for(Album b: vertici) {
+			this.idMap.put(b.getAlbumId(), b);
 		}
-		
-		//aggiungo i veritici
-		
-		List<Pair<Integer,Integer>> archi=dao.getCompatibleAlbums();
-		for (Pair<Integer,Integer> arco: archi) {
-			if(albumIdMap.containsKey(arco.getFirst()) && albumIdMap.containsKey(arco.getSecond()) && !arco.getFirst().equals(arco.getSecond())) {
-				this.grafo.addEdge(albumIdMap.get(arco.getFirst()), albumIdMap.get(arco.getSecond()));
+		Graphs.addAllVertices(this.grafo, vertici);
+		List<Pair<Integer,Integer>> archi=this.dao.getCompatibleAlbums();
+		for (Pair<Integer,Integer> p: archi) {
+			Album a1=this.idMap.get(p.getFirst());
+			Album a2=this.idMap.get(p.getSecond());
+			if(a1!=null && a2!=null) {
+				this.grafo.addEdge(a1,a2);
 			}
 		}
-		System.out.println("Vertici: "+this.grafo.vertexSet().size());
-		System.out.println("Archi: "+this.grafo.edgeSet().size());
+		System.out.println("Vertici: "+this.grafo.vertexSet().size()) ;
+		System.out.println("Archi:   "+this.grafo.edgeSet().size()) ;
+		
 	}
 	
 	public List<Album> getAlbums(){
@@ -55,46 +61,107 @@ public class Model {
 	}
 	
 	public Set<Album> getComponente (Album al){
-		ConnectivityInspector<Album,DefaultEdge>ci=new ConnectivityInspector(this.grafo);
-		return ci.connectedSetOf(al);
-		
+		ConnectivityInspector<Album, DefaultEdge> inspector=new ConnectivityInspector<>(this.grafo);
+		Set<Album> componenteConnessa=inspector.connectedSetOf(al);
+		this.compConnessa=componenteConnessa;
+		return this.compConnessa;	
+	}
+	
+	public double sommaDurate() {
+		if(this.compConnessa.size()==0 || this.compConnessa==null) {
+			return 0;
+		}
+		double durata=0;
+		for(Album a: this.compConnessa) {
+			durata+=a.getDurata();
+		}
+		return durata;
 	}
 	
 	public Set<Album> ricercaSetMassimo(Album a1,double dTot){
-		if (a1.getDurata()>dTot) {
-			return null;
-		}
-		List<Album> parziale=new ArrayList<>();
-		List<Album> tutti=new ArrayList<>(getComponente(a1));
-		dimMax=0;
-		setMassimo=null;
-		//parziale.add(a1);
-		tutti.remove(a1);
-		cerca(parziale,0,dTot-a1.getDurata(),tutti,0.0);
-		Set<Album> result =new HashSet<>(this.setMassimo);
-		result.add(a1);
+		this.durataMax=dTot;
+		this.setMassimo=new HashSet<>();
+		this.dimMax=0;
+		Set<Album > parziale =new HashSet<>();
+		Set<Album> rimanenti= new HashSet<>(this.getComponente(a1));
+		parziale.add(a1);
+		rimanenti.remove(a1);
+		
+		cerca(parziale,a1.getDurata(),rimanenti);
 		return this.setMassimo;
 		
+		
 	}
-	
-	private void cerca(List<Album> parziale, int livello, double dTot, List<Album> tutti,double durataParziale) {
-		//condizione di terminazione
-		if(parziale.size()>dimMax) {
-			dimMax=parziale.size();
-			this.setMassimo=new HashSet<Album>(parziale);
-			return;
+	private void cerca(Set<Album> parziale, double durataParziale,Set<Album> rimanenti) {
+		if(parziale.size()>this.dimMax) {
+			this.setMassimo=new HashSet<>(parziale);
+			this.dimMax=parziale.size();
+			this.durata=durataParziale;
+			if(durataParziale==this.durataMax) {
+				return;
+			}
 		}
+		Set<Album> rimanentiAggiornato=new HashSet<>(rimanenti);
 		
-		for (Album a: tutti) {
-			if((livello==0)||(a.getAlbumId()>parziale.get(parziale.size()-1).getAlbumId() && durataParziale+a.getDurata()<=dTot)) {			
+		for( Album a: rimanenti) {
+			if(durataParziale+a.getDurata()<this.durataMax) {
 				parziale.add(a);
-				cerca(parziale,livello+1,dTot,tutti,durataParziale+a.getDurata());
-				parziale.remove(parziale.size()-1);	
-			}	
+				rimanentiAggiornato.remove(a);
+				cerca(parziale,durataParziale+a.getDurata(), rimanentiAggiornato);
+				rimanentiAggiornato.add(a);
+				parziale.remove(a);	
+			}
 		}
 		
 		
 		
+	
+	
+	
+	
+	
+	
+	
+//	public Set<Album> ricercaSetMassimo(Album a1,double dTot){
+//		if (a1.getDurata()>dTot) {
+//			return null;
+//		}
+//		List<Album> parziale=new ArrayList<>();
+//		List<Album> tutti=new ArrayList<>(getComponente(a1));
+//		dimMax=0;
+//		setMassimo=null;
+//		//parziale.add(a1);
+//		tutti.remove(a1);
+//		cerca(parziale,0,dTot-a1.getDurata(),tutti,0.0);
+//		Set<Album> result =new HashSet<>(this.setMassimo);
+//		result.add(a1);
+//		return this.setMassimo;
+//		
+//	}
+	
+//	private void cerca(List<Album> parziale, int livello, double dTot, List<Album> tutti,double durataParziale) {
+//		//condizione di terminazione
+//		if(parziale.size()>dimMax) {
+//			dimMax=parziale.size();
+//			this.setMassimo=new HashSet<Album>(parziale);
+//			return;
+//		}
+//		
+//		for (Album a: tutti) {
+//			if((livello==0)||(a.getAlbumId()>parziale.get(parziale.size()-1).getAlbumId() && durataParziale+a.getDurata()<=dTot)) {			
+//				parziale.add(a);
+//				cerca(parziale,livello+1,dTot,tutti,durataParziale+a.getDurata());
+//				parziale.remove(parziale.size()-1);	
+//			}	
+//		}
+//		
+		
+		
+	}
+
+	public double getDurata() {
+		
+		return this.durata;
 	}
 	
 }
